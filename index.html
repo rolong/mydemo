@@ -1,0 +1,204 @@
+<html>
+    <head>
+        <title> Gamechain nodes </title>
+        <script src="./web3.min.js"></script>
+        <script src="./curve-abi.js"></script>
+        <script src="./bzz-abi.js"></script>
+        <script src="./node-abi.js"></script>
+        <style>
+        body {
+            background-color:#F0F0F0;
+            padding: 2em;
+            font-family: 'Raleway','Source Sans Pro', 'Arial';
+        }
+        .container {
+            width: 80%;
+            margin: 0 auto;
+        }
+        label {
+            display:block;
+            margin-bottom:10px;
+        }
+        input {
+            padding:10px;
+            width: 80%;
+            margin-bottom: 1em;
+        }
+        button {
+            margin: 2em 0;
+            padding: 1em 4em;
+            display:block;
+        }
+
+        .info {
+            padding:1em;
+            background-color:#fff;
+            margin: 1em 0;
+        }
+        #textarea {
+            width: 100%;
+            height: 10em;
+            padding:1em;
+            background-color:#fff;
+            margin: 1em 0;
+        }
+
+        hr{
+            margin-bottom: 2em;
+        }
+
+        </style>
+    </head>
+    <body>
+        <div class="container">
+
+            <h1>Gamechain nodes</h1>
+            <h5 id="chainId" class="info"></h5>
+
+            <h5 class="label">资金池余额:</h2>
+            <h2 id="totalBalance" class="info"></h2>
+
+            <h5 class="label">总节点数:</h2>
+            <h2 id="totalNodes" class="info"></h2>
+
+            <h5 class="label">在线节点数:</h2>
+            <h2 id="onlineNodes" class="info"></h2>
+
+            <h5 class="label">已释放节点数:</h2>
+            <h2 id="releaseNodes" class="info"></h2>
+
+            <button id="conn">Connect</button>
+            <h5 class="label">Address:</h2>
+            <h2 id="address" class="info"></h2>
+
+            <h5 class="label">可领取的挖矿奖励:</h2>
+            <h2 id="balanceMint" class="info"></h2>
+
+            <h5 class="label">可领取的质押币:</h2>
+            <h2 id="pendingAsset" class="info"></h2>
+
+            <h5 class="label">未释放的质押币:</h2>
+            <h2 id="lockedAsset" class="info"></h2>
+
+            <h5 class="label">剩余释放时长:</h2>
+            <h2 id="releaseTime" class="info"></h2>
+
+            <hr />
+
+            <h2 id="tip" class="info"></h2>
+            <input id="nid" type="text" placeholder="请输入节点ID">
+            <button id="register">创建节点</button>
+            <button id="logout">注销节点</button>
+            <button id="withdrawMint">领取挖矿奖励</button>
+            <button id="withdrawPledge">取回已经释放的质押币</button>
+
+
+
+        </div>
+
+        <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js"></script>
+
+        <script>
+        $(document).ready(function(){
+            if (typeof window.ethereum !== 'undefined') {
+                console.log('MetaMask is installed!');
+                web3 = new Web3(window['ethereum']);
+            } else {
+                web3 = new Web3(new Web3.providers.HttpProvider("http://101.32.177.140:7345"));
+                console.log('rpc');
+            }
+
+            var nodeContract = new web3.eth.Contract(nodeABI, '0x1111111111111111111111111111111111111111');
+
+
+            async function checkNetwork(){
+                const chainId = await ethereum.request({ method: 'eth_chainId' });
+                $('#chainId').html(chainId);
+                if(chainId != 0x2df){
+                    alert("Invalid Network!");
+                    return 0;
+                }
+                nodeContract.methods.getInfo().call().then((info) =>
+                    {
+                        $("#totalBalance").html(info.totalBalance);
+                        $("#totalNodes").html(info.totalNodes);
+                        $("#onlineNodes").html(info.onlineNodes);
+                        $("#releaseNodes").html(info.releaseNodes);
+                    }
+                )
+                return chainId;
+            }
+            checkNetwork();
+
+            $("#conn").click(async function() {
+                if($('#chainId').html() != '0x2df') return;
+
+                const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                const account = accounts[0];
+                $("#address").html(account.toString());
+
+                nodeContract.methods.getReleaseInfo(account).call().then((info) =>
+                    {
+                        var balanceMint = web3.utils.fromWei(info.balanceMint, 'ether');
+                        var lockedAsset = web3.utils.fromWei(info.lockedAsset, 'ether');
+                        var pendingAsset = web3.utils.fromWei(info.pendingAsset, 'ether');
+                        $("#balanceMint").html(balanceMint);
+                        $("#lockedAsset").html(lockedAsset);
+                        $("#pendingAsset").html(pendingAsset);
+                        $("#releaseTime").html(info.releaseTime);
+                    }
+                )
+            })
+
+            $("#register").click(async function() {
+                if(!$("#nid").val()){
+                    alert("请输入节点ID");
+                    return;
+                }
+                let account = $("#address").html();
+                if(!account){
+                    alert("请先连接钱包");
+                    return;
+                }
+                nodeContract.methods.register($("#nid").val()).send({from: account}, function(error, transactionHash){
+                    $("#tip").html(error);
+                });
+            });
+
+            $("#logout").click(async function() {
+                let account = $("#address").html();
+                if(!account){
+                    alert("请先连接钱包");
+                    return;
+                }
+                nodeContract.methods.logout().send({from: account}, function(error, transactionHash){
+                    $("#tip").html(error);
+                });
+            });
+
+            $("#withdrawMint").click(async function() {
+                let account = $("#address").html();
+                if(!account){
+                    alert("请先连接钱包");
+                    return;
+                }
+                nodeContract.methods.withdrawMint().send({from: account}, function(error, transactionHash){
+                    $("#tip").html(error);
+                });
+            });
+
+            $("#withdrawPledge").click(async function() {
+                let account = $("#address").html();
+                if(!account){
+                    alert("请先连接钱包");
+                    return;
+                }
+                nodeContract.methods.withdrawPledge().send({from: account}, function(error, transactionHash){
+                    $("#tip").html(error);
+                });
+            });
+
+        });
+        </script>
+    </body>
+</html>
