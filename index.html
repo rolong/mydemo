@@ -68,8 +68,18 @@
             <h2 id="releaseNodes" class="info"></h2>
 
             <button id="conn">Connect</button>
+
             <h5 class="label">Address:</h2>
             <h2 id="address" class="info"></h2>
+
+            <h5 class="label">我的节点状态:</h2>
+            <h2 id="status" class="info"></h2>
+
+            <h5 class="label">在线状态:</h2>
+            <h2 id="blockOnline" class="info"></h2>
+
+            <h5 class="label">创建时间:</h2>
+            <h2 id="blockRegister" class="info"></h2>
 
             <h5 class="label">可领取的挖矿奖励:</h2>
             <h2 id="balanceMint" class="info"></h2>
@@ -146,6 +156,20 @@
                         $("#lockedAsset").html(lockedAsset);
                         $("#pendingAsset").html(pendingAsset);
                         $("#releaseTime").html(info.releaseTime);
+                    }
+                )
+
+                var nid = await nodeContract.methods.investor2nid(account).call();
+                nodeContract.methods.nodes(nid).call().then((info) =>
+                    {
+                        if(info.status == '0') { $('#status').html('没有节点'); }
+                        if(info.status == '1') { $('#status').html('节点有效'); }
+                        if(info.status == '2') { $('#status').html('节点已注销'); }
+
+                        if(info.blockOnline == '0') { $('#blockOnline').html('离线'); }
+                        else { $('#blockOnline').html('在线'); }
+
+                        $('#blockRegister').html(info.blockRegister);
                     }
                 )
             })
